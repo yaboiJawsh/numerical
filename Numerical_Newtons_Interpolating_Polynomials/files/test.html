@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>General Form of Newton’s Interpolating Polynomials</title>
+  <link rel="stylesheet" href="style1.css">
+</head>
+<body>
+
+<div class="container">
+  <h2>General Form of Newton’s Interpolating Polynomials</h2>
+  <h3>Rows:</h3>
+  <table id="data">
+    <tr>
+      <th>x</th>
+      <th>f(x)</th>
+    </tr>
+    <tr>
+      <td><input type="number" class="x" value=""></td>
+      <td><input type="number" class="fx" value=""></td>
+    </tr>
+  </table>
+  <button onclick="addRow()">Add Row</button>
+  <label for="missingX">Enter the missing value of x:</label>
+  <input type="number" id="missingX">
+  <button onclick="calculate()">Calculate</button>
+  <div id="result"></div>
+  <div id="error-popup" class="hidden"> <h2>Invalid Input</h2>
+    <img src="https://i.kym-cdn.com/photos/images/original/002/477/529/b46.gif" alt="Confused John Travolta">
+    <p>Please input valid values for all fields.</p>
+    <button id="close-popup">Close</button>
+  </div>
+</div>
+
+<script src="script1.js"></script>
+
+</body>
+</html>
