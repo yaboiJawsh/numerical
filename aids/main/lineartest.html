@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiple Linear Regression for Bitcoin</title>
+<style>
+    body {
+        animation: fadeIn 3s ease-in-out;
+        background-color: #f5f5dc; 
+        font-family: Arial, sans-serif; 
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden; 
+    }
+    h2 {
+        text-align: center;
+        color: #333; 
+        margin-top: 20px;
+        animation: slideIn 2s ease-out; 
+    }
+    table {
+        border-collapse: collapse;
+        width: 80%;
+        margin: 20px auto; 
+        animation: slideIn 1.5s ease-out; 
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+    }
+    .button-container {
+        display: flex;
+        gap: 10px; 
+        margin-bottom: 20px; 
+        animation: slideIn 2s ease-out; 
+    }
+    .correlation-description {
+    text-align: center;
+    }
+    button {
+        display: block;
+        margin: 10px auto; 
+        padding: 10px 20px;
+        background-color: #333; 
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s; 
+        flex: 0.22; 
+  }
+    button:hover {
+        background-color: #555; 
+    }
+
+    .heading {
+        text-align: center;
+        font-weight: bold;
+        font-size: 1.5em;
+        margin-top: 20px;
+        animation: slideIn 2s ease-out; 
+
+    }
+    #coefficients, #formula {
+        text-align: center;
+        margin-top: 20px;
+    }
+    #outputs {
+    text-align: center;
+    background-color: #f9f9f9; /* Subtle background */
+    padding: 30px;
+    border-radius: 5px;   /* Slightly rounded corners */
+    }
+
+    #outputs h3 { 
+    margin-bottom: 15px; 
+    }
+
+    #outputs section {
+    margin-bottom: 25px; 
+    border: 1px solid #ddd; /* Light border */
+    padding: 20px;
+    border-radius: 5px;  
+    }
+
+    #coefficients, #stds, #formula {
+    display: flex;
+    align-items: center; /* Align labels and values */
+    gap: 10px;  
+    }
+
+    #coefficients p, #stds p, #formula p {
+    margin: 5px 0; 
+    }
+
+    #coefficients label, 
+    #stds label, 
+    #formula label {
+    font-weight: bold;
+    min-width: 180px; /* Give labels a consistent width */
+    }
+    @keyframes slideIn {
+        from {
+        transform: translateX(-100%);
+        opacity: 0;
+        }
+        to {
+        transform: translateX(0);
+        opacity: 1;
+        }
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+        }
+</style>
+</head>
+<body>
+
+<h2>Multiple Linear Regression for Bitcoin</h2>
+
+<table id="dataTable">
+    <thead>
+        <tr>
+            <th><span id="n-value"></span></th>
+            <th>Market Cap (X₁i)</th>
+            <th>Total Volume (X₂i)</th>
+            <th>Price (Y)</th>
+            <th>X₁iX₂i</th>
+            <th>X₁i²</th>
+            <th>X₂i²</th>
+            <th>X₁iYi</th>
+            <th>X₂iYi</th>
+            <th>(Yi-Y̅)²</th>
+            <th>(Yi-a₀-a₁X₁-a₂X₂)²</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="sum"></td>
+            <td><input type="number" class="marketCap" step="any" style="width: 80px;"></td>
+            <td><input type="number" class="totalVolume" step="any" style="width: 80px;"></td>
+            <td><input type="number" class="price" step="any" style="width: 80px;"></td>
+            <td class="x1x2"></td>
+            <td class="x1Squared"></td>
+            <td class="x2Squared"></td>
+            <td class="x1Y"></td>
+            <td class="x2Y"></td>
+            <td class="yMinyMeanSqu"></td>
+            <td class="idfk"></td>
+        </tr>
+    </tbody>
+    <tfoot>
+        <tr id="sumRow">
+            <td>Sum</td>
+            <td id="sumMarketCap"></td>
+            <td id="sumTotalVolume"></td>
+            <td id="sumPrice"></td>
+            <td id="sumX1X2"></td>
+            <td id="sumX1Squared"></td>
+            <td id="sumX2Squared"></td>
+            <td id="sumX1Y"></td>
+            <td id="sumX2Y"></td>
+            <td id="sumYMinYMeanSqu"></td>
+            <td id="sumidfk"></td>
+        </tr>
+    </tfoot>
+</table>
+
+<div class="button-container">
+    <button onclick="addRow()">Add Row</button>
+    <button onclick="removeRow()">Remove Row</button>
+    <button onclick="clearAllRows()">Clear All Rows</button>
+    <button onclick="calculateIdfk()"> Calculate</button>
+</div> 
+
+<div id="outputs">
+    <section id="model-summary">
+      <h3>Model Summary</h3> 
+      <div id="coefficients">
+        <p><label for="a0">a0:</label> <span id="a0"></span></p> 
+        <p><label for="a1">a1:</label> <span id="a1"></span></p> 
+        <p><label for="a2">a2:</label> <span id="a2"></span></p>
+      </div>
+      <div id="stds">
+        <p><label for="se">Standard Error of Estimate (SE):</label> <span id="se"></span></p> 
+        <p><label for="r">Correlation Coefficient (r):</label>  <span id="r"></span></p> 
+      </div>  
+    </section>
+  
+    <section id="formula-section">
+      <h3>Regression Formula</h3>
+      <div id="formula">
+         <p>Best Fit Regression Line Equation: y = <span id="formula-content"></span></p>
+      </div>
+    </section>
+  
+    <section id="correlation-section">
+      <h3>Correlation Description</h3>
+      <div id="aids" class="correlation-description">         
+        <p>Verbal Description of Correlation Coefficient: <span id="r-description"></span></p>
+      </div> 
+    </section>
+  </div>
+<div id="outputs" class="heading" style="font-size: 20px;">
+    <h3>Chart</h3>
+    <canvas id="chart"></canvas>
+    <div id="plot"></div>
+</div>
+
+<script>
+    var n = 1;
+    var a0, a1, a2;
+
+function calculate() {
+    var meanY = calculateMeanY();
+    var row = this.closest('tr');
+    var x1 = parseFloat(row.querySelector(".marketCap").value);
+    var x2 = parseFloat(row.querySelector(".totalVolume").value);
+    var y = parseFloat(row.querySelector(".price").value);
+    var yMinyMeanSqu = (y - meanY)*(y - meanY);
+
+    var x1Squared = x1 * x1;
+    var x2Squared = x2 * x2;
+    var x1x2 = x1 * x2;
+    var x1Y = x1 * y;
+    var x2Y = x2 * y;
+
+    row.querySelector(".x1Squared").innerText = x1Squared.toFixed(2);
+    row.querySelector(".x2Squared").innerText = x2Squared.toFixed(2);
+    row.querySelector(".x1x2").innerText = x1x2.toFixed(2);
+    row.querySelector(".x1Y").innerText = x1Y.toFixed(2);
+    row.querySelector(".x2Y").innerText = x2Y.toFixed(2);
+    row.querySelector(".yMinyMeanSqu").innerText = yMinyMeanSqu.toFixed(2);
+
+    calculateSums();
+}
+
+function calculateIdfk() {
+    var a0 = parseFloat(window.a0);
+    var a1 = parseFloat(window.a1);
+    var a2 = parseFloat(window.a2);
+
+    document.querySelectorAll('tbody tr').forEach(function(row) {
+        var x1 = parseFloat(row.querySelector(".marketCap").value) || 0;
+        var x2 = parseFloat(row.querySelector(".totalVolume").value) || 0;
+        var y = parseFloat(row.querySelector(".price").value) || 0;
+
+        var idfk = Math.pow(y - a0 - a1 * x1 - a2 * x2, 2);
+
+        row.querySelector(".idfk").innerText = idfk.toFixed(2);
+    });
+
+    calculateSums();
+}
+
+function calculateMeanY() {
+    var sumY = 0;
+    var countY = 0;
+    document.querySelectorAll('.price').forEach(function(input) {
+        var y = parseFloat(input.value) || 0;
+        sumY += y;
+        countY++;
+    });
+    return countY > 0 ? sumY / countY : 0;
+}
+
+function calculateSums() {
+    var marketCapSum = 0, totalVolumeSum = 0, priceSum = 0;
+    var x1SquaredSum = 0, x2SquaredSum = 0, x1x2Sum = 0, x1YSum = 0, x2YSum = 0;
+    var sumYMinYMeanSqu = 0, sumidfk = 0;
+
+    document.querySelectorAll('tbody tr').forEach(function(row) {
+        marketCapSum += parseFloat(row.querySelector(".marketCap").value) || 0;
+        totalVolumeSum += parseFloat(row.querySelector(".totalVolume").value) || 0;
+        priceSum += parseFloat(row.querySelector(".price").value) || 0;
+        x1SquaredSum += parseFloat(row.querySelector(".x1Squared").innerText) || 0;
+        x2SquaredSum += parseFloat(row.querySelector(".x2Squared").innerText) || 0;
+        x1x2Sum += parseFloat(row.querySelector(".x1x2").innerText) || 0;
+        x1YSum += parseFloat(row.querySelector(".x1Y").innerText) || 0;
+        x2YSum += parseFloat(row.querySelector(".x2Y").innerText) || 0;
+        sumYMinYMeanSqu += parseFloat(row.querySelector(".yMinyMeanSqu").innerText) || 0;
+        sumidfk += parseFloat(row.querySelector(".idfk").innerText) || 0;
+    });
+
+    document.getElementById("sumMarketCap").innerText = marketCapSum.toFixed(2);
+    document.getElementById("sumTotalVolume").innerText = totalVolumeSum.toFixed(2);
+    document.getElementById("sumPrice").innerText = priceSum.toFixed(2);
+    document.getElementById("sumX1Squared").innerText = x1SquaredSum.toFixed(2);
+    document.getElementById("sumX2Squared").innerText = x2SquaredSum.toFixed(2);
+    document.getElementById("sumX1X2").innerText = x1x2Sum.toFixed(2);
+    document.getElementById("sumX1Y").innerText = x1YSum.toFixed(2);
+    document.getElementById("sumX2Y").innerText = x2YSum.toFixed(2);
+    document.getElementById("sumYMinYMeanSqu").innerText = sumYMinYMeanSqu.toFixed(2);
+    document.getElementById("sumidfk").innerText = sumidfk.toFixed(2);
+
+    calculateCoefficients();
+}
+
+function calculateCoefficients() {
+    var matrix = [
+        [n, parseFloat(document.getElementById("sumMarketCap").innerText), parseFloat(document.getElementById("sumTotalVolume").innerText), parseFloat(document.getElementById("sumPrice").innerText)],
+        [parseFloat(document.getElementById("sumMarketCap").innerText), parseFloat(document.getElementById("sumX1Squared").innerText), parseFloat(document.getElementById("sumX1X2").innerText), parseFloat(document.getElementById("sumX1Y").innerText)],
+        [parseFloat(document.getElementById("sumTotalVolume").innerText), parseFloat(document.getElementById("sumX1X2").innerText), parseFloat(document.getElementById("sumX2Squared").innerText), parseFloat(document.getElementById("sumX2Y").innerText)]
+    ];
+
+    for (var i = 0; i < matrix.length; i++) {
+        var pivot = matrix[i][i];
+        for (var j = 0; j < matrix[i].length; j++) {
+            matrix[i][j] /= pivot;
+        }
+
+        for (var k = 0; k < matrix.length; k++) {
+            if (k !== i) {
+                var factor = matrix[k][i];
+                for (var l = 0; l < matrix[k].length; l++) {
+                    matrix[k][l] -= factor * matrix[i][l];
+                }
+            }
+        }
+    }
+
+    a0 = matrix[0][3];
+    a1 = matrix[1][3];
+    a2 = matrix[2][3];
+
+    window.a0 = a0;
+    window.a1 = a1;
+    window.a2 = a2;
+
+    var st = parseFloat(document.getElementById("sumYMinYMeanSqu").innerText);
+    var sr = parseFloat(document.getElementById("sumidfk").innerText);
+    var se = Math.sqrt(sr / (n - 2));
+
+    var r = Math.sqrt((st - sr) / st);
+
+    var coefficientsContainer = document.getElementById("coefficients");
+    coefficientsContainer.innerHTML = `
+        <p>a0: ${a0.toFixed(2)}</p>
+        <p>a1: ${a1.toFixed(2)}</p>
+        <p>a2: ${a2.toFixed(2)}</p>
+        
+    `;
+
+    var stdsContainer = document.getElementById("stds");
+    stdsContainer.innerHTML = `
+        <p>Standard Error of Estimate (SE): ${se.toFixed(2)}</p>
+        <p>Correlation Coefficient (r): ${r.toFixed(2)}</p>
+    `;
+
+    var formulaContainer = document.getElementById("formula");
+    formulaContainer.innerHTML = `
+        <p>Best Fit Regression Line Equation: y = ${a0.toFixed(2)} ${a1 < 0 ? '-' : '+'} ${Math.abs(a1).toFixed(2)}X₁ ${a2 < 0 ? '-' : '+'} ${Math.abs(a2).toFixed(2)}X₂</p>
+        <p>Predicted Future Value: <span id="predicted-value">${a0 + a1 * 100 + a2 * 200}</span></p>
+    `;
+    var formulaContainer = document.getElementById("aids");
+    formulaContainer.innerHTML = `
+        <div class="correlation-description">     
+        <p>Verbal Description of Correlation Coefficient: <span id="r-description">${getVerbalDescription(r)}</span></p>
+        </div>
+    `; 
+
+    var predictedValues = [];
+    document.querySelectorAll('tbody tr').forEach(function(row) {
+        var x1 = parseFloat(row.querySelector(".marketCap").value) || 0;
+        var x2 = parseFloat(row.querySelector(".totalVolume").value) || 0;
+        predictedValues.push(a0 + a1 * x1 + a2 * x2);
+    });
+
+    drawChart();
+    generateScatterPlot();
+    }
+
+    function drawChart() {
+    var ctx = document.getElementById('chart').getContext('2d');
+    var chart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Data Points',
+                data: [],
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+                showLine: false
+            }, {
+                label: 'Best Fit Line',
+                data: [],
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1,
+                type: 'line'
+            }]
+        },
+        options: {
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    document.querySelectorAll('tbody tr').forEach(function(row, index) {
+        var x1 = parseFloat(row.querySelector(".marketCap").value) || 0;
+        var y = parseFloat(row.querySelector(".price").value) || 0;
+        chart.data.datasets[0].data.push({ x: x1, y: y });
+
+        if (index < predictedValues.length) {
+            chart.data.datasets[1].data.push({ x: x1, y: predictedValues[index] });
+        }
+    });
+
+    chart.update();
+    generateScatterPlot();
+}
+
+    function getVerbalDescription(r) {
+        if (r > 0.7) {
+            return "Strong positive correlation";
+        } else if (r > 0.5) {
+            return "Moderate positive correlation";
+        } else if (r > 0.3) {
+            return "Weak positive correlation";
+        } else if (r < -0.7) {
+            return "Strong negative correlation";
+        } else if (r < -0.5) {
+            return "Moderate negative correlation";
+        } else if (r < -0.3) {
+            return "Weak negative correlation";
+        } else {
+            return "No correlation";
+        }
+    }
+
+
+function addRow() {
+    var table = document.getElementById("dataTable");
+    var newRow = table.tBodies[0].insertRow(-1);
+    n += 1;
+    document.getElementById("n-value").innerText = n.toString();
+
+    newRow.innerHTML = `
+        <td></td> <!-- Empty cell in the first column -->
+        <td><input type="number" class="marketCap" step="any" style="width: 80px;"></td>
+        <td><input type="number" class="totalVolume" step="any" style="width: 80px;"></td>
+        <td><input type="number" class="price" step="any" style="width: 80px;"></td>
+        <td class="x1x2"></td>
+        <td class="x1Squared"></td>
+        <td class="x2Squared"></td>
+        <td class="x1Y"></td>
+        <td class="x2Y"></td>
+        <td class="yMinyMeanSqu"></td>
+        <td class="idfk"></td>
+    `;
+    newRow.querySelectorAll('input').forEach(function(input) {
+        input.addEventListener('input', calculate);
+    });
+    calculate.call(newRow);
+     
+}
+
+function removeRow() {
+    var table = document.getElementById("dataTable");
+    var rowCount = table.tBodies[0].rows.length;
+
+    if (n > 1) {
+        n -= 1;
+        document.getElementById("n-value").innerText = n.toString();
+    }
+
+    if (rowCount > 1) {
+        table.tBodies[0].deleteRow(-1);
+        calculateSums();
+    } else {
+        alert("Cannot remove the only row.");
+    }
+
+    calculateSums();
+}
+
+function clearAllRows() {
+    var table = document.getElementById("dataTable");
+    var tbody = table.tBodies[0];
+    var rowCount = tbody.rows.length;
+    n = 1;
+    document.getElementById("n-value").innerText = n.toString();
+
+    if (rowCount > 1) {
+        for (var i = rowCount - 1; i > 0; i--) {
+            tbody.deleteRow(i);
+        }
+    }
+
+    tbody.querySelectorAll('tr').forEach(row => {
+        row.querySelectorAll('input').forEach(input => {
+            input.value = '';
+        });
+        row.querySelectorAll('.x1x2, .x1Squared, .x2Squared, .x1Y, .x2Y, .yMinyMeanSqu, .idfk').forEach(cell => {
+            cell.innerText = '';
+        });
+    });
+
+    calculateSums();
+}
+
+
+
+var inputs = document.querySelectorAll('input');
+inputs.forEach(function(input) {
+    input.addEventListener('input', calculate);
+});
+
+function generateScatterPlot() {
+    var x1Data = [];
+    var x2Data = [];
+    var yData = [];
+
+    document.querySelectorAll('.subscribers').forEach(function(input) {
+        x1Data.push(parseFloat(input.value));
+    });
+
+    document.querySelectorAll('.likes').forEach(function(input) {
+        x2Data.push(parseFloat(input.value));
+    });
+
+    document.querySelectorAll('.views').forEach(function(input) {
+        yData.push(parseFloat(input.value));
+    });
+
+    var trace1 = {
+        x: x1Data,
+        y: yData,
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Subscribers vs Earnings'
+    };
+
+    var trace2 = {
+        x: x2Data,
+        y: yData,
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Views vs Earnings'
+    };
+
+    var layout = {
+        title: 'Scatter Plot with Best Fit Regression Line',
+        xaxis: {
+            title: 'Subscribers / Views'
+        },
+        yaxis: {
+            title: 'Earnings'
+        },
+        showlegend: true
+    };
+
+    var regressionLineX = [];
+    var regressionLineY = [];
+    var xMin = Math.min.apply(null, x1Data.concat(x2Data));
+    var xMax = Math.max.apply(null, x1Data.concat(x2Data));
+
+    for (var i = xMin; i <= xMax; i += 10) {
+        regressionLineX.push(i);
+        regressionLineY.push(a0 + a1 * i + a2 * i);
+    }
+
+    var trace3 = {
+        x: regressionLineX,
+        y: regressionLineY,
+        mode: 'lines',
+        type: 'scatter',
+        name: 'Best Fit Regression Line',
+        line: {
+            color: 'red'
+        }
+    };
+
+    var data = [trace1, trace2, trace3];
+
+    Plotly.newPlot('plot', data, layout);
+}
+
+
+calculate();
+ 
+</script>
+</body>
+</html>
